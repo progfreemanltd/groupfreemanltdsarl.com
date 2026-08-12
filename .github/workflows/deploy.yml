@@ -20,9 +20,11 @@ jobs:
         cache: 'npm'
 
     - name: 📦 Install dependencies
+      working-directory: ${{ github.workspace }}/groupfreemanltdsarl.com
       run: npm install
 
     - name: 🏗️ Build Project
+      working-directory: ${{ github.workspace }}/groupfreemanltdsarl.com
       run: npm run build
 
     - name: 📂 Sync files
