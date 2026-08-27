@@ -1,0 +1,230 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ==========================================
+    // HELPER FUNCTIONS
+    // ==========================================
+    
+    // Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Check if user is a Super Admin
+    function isSuperAdmin() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin';
+    }
+    
+    // Check if user is Admin (Super Admin or Admin role)
+    function isAdmin() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['super_admin', 'admin'];
+    }
+    
+    // Check if user is Vendor
+    function isVendor() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'vendor';
+    }
+    
+    // Check if user owns the resource
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Check if user is a moderator
+    function isModerator() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['super_admin', 'admin', 'moderator'];
+    }
+    
+    // ==========================================
+    // USERS COLLECTION
+    // ==========================================
+    match /users/{userId} {
+      // Users can read their own profile
+      allow read: if isOwner(userId);
+      
+      // Super Admins can read all users
+      allow read: if isSuperAdmin();
+      
+      // Super Admins can update any user
+      allow update: if isSuperAdmin();
+      
+      // Super Admins can delete users
+      allow delete: if isSuperAdmin();
+      
+      // New users can create their own account during registration
+      allow create: if isAuthenticated() && request.auth.uid == userId && 
+                      request.resource.data.role == 'customer';
+    }
+    
+    // ==========================================
+    // ADMIN CMS COLLECTION (CRITICAL - SUPER ADMIN ONLY)
+    // ==========================================
+    match /admin_cms/{document=**} {
+      // DENY ALL by default
+      allow read: if false;
+      allow write: if false;
+      allow delete: if false;
+      
+      // Only Super Admins can read
+      allow read: if isSuperAdmin();
+      
+      // Only Super Admins can create/update/delete
+      allow create, update: if isSuperAdmin() && 
+                              request.resource.data.updatedBy == request.auth.uid &&
+                              request.resource.data.updatedAt == request.time;
+      
+      allow delete: if isSuperAdmin();
+    }
+    
+    // ==========================================
+    // PRODUCTS COLLECTION
+    // ==========================================
+    match /products/{productId} {
+      // Anyone can read published products
+      allow read: if resource.data.published == true || isSuperAdmin();
+      
+      // Only Admins can create products
+      allow create: if isAdmin() && 
+                      request.resource.data.sellerId == request.auth.uid &&
+                      request.resource.data.createdAt == request.time;
+      
+      // Vendors can update their own products, Admins can update any
+      allow update: if (isVendor() && resource.data.sellerId == request.auth.uid) || 
+                       isAdmin();
+      
+      // Vendors can delete their own products, Admins can delete any
+      allow delete: if (isVendor() && resource.data.sellerId == request.auth.uid) || 
+                       isSuperAdmin();
+    }
+    
+    // ==========================================
+    // ORDERS COLLECTION
+    // ==========================================
+    match /orders/{orderId} {
+      // Users can read their own orders
+      allow read: if isOwner(resource.data.customerId);
+      
+      // Admins can read all orders
+      allow read: if isAdmin();
+      
+      // Only authenticated users can create orders
+      allow create: if isAuthenticated() && 
+                      request.resource.data.customerId == request.auth.uid &&
+                      request.resource.data.createdAt == request.time &&
+                      request.resource.data.status == 'pending';
+      
+      // Customers can update their own orders (only specific fields)
+      allow update: if isOwner(resource.data.customerId) && 
+                       request.resource.data.customerId == resource.data.customerId;
+      
+      // Admins can update any order
+      allow update: if isAdmin();
+      
+      // Only Super Admins can delete orders
+      allow delete: if isSuperAdmin();
+    }
+    
+    // ==========================================
+    // CART COLLECTION
+    // ==========================================
+    match /carts/{userId} {
+      // Users can read their own cart
+      allow read: if isOwner(userId);
+      
+      // Users can create and update their own cart
+      allow create, update: if isOwner(userId) && 
+                              request.resource.data.userId == userId;
+      
+      // Users can delete their own cart
+      allow delete: if isOwner(userId);
+    }
+    
+    // ==========================================
+    // CMS CONTENT COLLECTION
+    // ==========================================
+    match /cms_content/{contentId} {
+      // Anyone can read published content
+      allow read: if resource.data.published == true || isSuperAdmin();
+      
+      // Only Super Admins can create/update/delete
+      allow create, update, delete: if isSuperAdmin() && 
+                                       request.resource.data.updatedBy == request.auth.uid;
+    }
+    
+    // ==========================================
+    // BLOG POSTS COLLECTION
+    // ==========================================
+    match /blog_posts/{postId} {
+      // Anyone can read published posts
+      allow read: if resource.data.published == true || isAdmin();
+      
+      // Only Admins can create posts
+      allow create: if isAdmin() && 
+                      request.resource.data.authorId == request.auth.uid &&
+                      request.resource.data.createdAt == request.time;
+      
+      // Admins can update posts
+      allow update: if isAdmin();
+      
+      // Only Super Admins can delete posts
+      allow delete: if isSuperAdmin();
+    }
+    
+    // ==========================================
+    // FORMATIONS COLLECTION
+    // ==========================================
+    match /formations/{formationId} {
+      // Anyone can read published formations
+      allow read: if resource.data.published == true || isAdmin();
+      
+      // Only Admins can create formations
+      allow create: if isAdmin() && 
+                      request.resource.data.createdAt == request.time;
+      
+      // Only Admins can update formations
+      allow update: if isAdmin();
+      
+      // Only Super Admins can delete formations
+      allow delete: if isSuperAdmin();
+    }
+    
+    // ==========================================
+    // MESSAGES COLLECTION
+    // ==========================================
+    match /messages/{messageId} {
+      // Users can read their own messages
+      allow read: if isOwner(resource.data.userId) || isModerator();
+      
+      // Authenticated users can create messages
+      allow create: if isAuthenticated() && 
+                      request.resource.data.userId == request.auth.uid &&
+                      request.resource.data.createdAt == request.time;
+      
+      // Only Super Admins can delete messages
+      allow delete: if isSuperAdmin();
+    }
+    
+    // ==========================================
+    // AUDIT LOGS COLLECTION (READ-ONLY - FOR ADMINS)
+    // ==========================================
+    match /audit_logs/{logId} {
+      // Only Admins can read audit logs
+      allow read: if isAdmin();
+      
+      // DENY all writes to clients (only Cloud Functions can write)
+      allow write: if false;
+    }
+    
+    // ==========================================
+    // DEFAULT: DENY ALL ACCESS
+    // ==========================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
