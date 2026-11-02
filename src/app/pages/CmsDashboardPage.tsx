@@ -4,8 +4,8 @@ import { useNavigate, Link } from 'react-router';
 import { useCMS, HomepageCMS, ContactCMS } from '../context/CMSContext';
 import { auth, db, firebaseConfig } from '../../lib/firebase';
 import { initializeApp } from 'firebase/app';
-import { updateEmail, updatePassword, getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as firebaseSignOut } from 'firebase/auth';
-import { doc, updateDoc, setDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { updateEmail, updatePassword, getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, signOut as firebaseSignOut } from 'firebase/auth';
+import { doc, updateDoc, setDoc, collection, query, where, getDoc, getDocs, limit } from 'firebase/firestore';
 import { 
   LayoutDashboard, FileText, Settings, Layers, FolderHeart, 
   Award, Users, Save, Plus, Trash2, ArrowLeft, Loader2,
@@ -27,6 +27,8 @@ export function CmsDashboardPage() {
 
   const [activeTab, setActiveTab] = useState<'hero' | 'sectors' | 'saas' | 'formations' | 'team_contact' | 'layout' | 'profile' | 'blog'>('hero');
   const [saving, setSaving] = useState(false);
+  const [saveNotice, setSaveNotice] = useState<{ type: 'saving' | 'success' | 'error'; message: string } | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Blog states
   const [selectedBlogArticle, setSelectedBlogArticle] = useState<any | null>(null);
@@ -178,6 +180,8 @@ export function CmsDashboardPage() {
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [loggingIn, setLoggingIn] = useState(false);
+  const [sendingReset, setSendingReset] = useState(false);
+  const [resetMessage, setResetMessage] = useState('');
 
   // Bootstrap Setup States
   const [hasSuperAdmin, setHasSuperAdmin] = useState<boolean | null>(null);
@@ -282,9 +286,42 @@ export function CmsDashboardPage() {
       }
     } catch (err: any) {
       console.error(err);
-      toast.error("Erreur de connexion : " + err.message);
+      const messages: Record<string, string> = {
+        'auth/invalid-credential': 'Email ou mot de passe incorrect.',
+        'auth/invalid-login-credentials': 'Email ou mot de passe incorrect.',
+        'auth/user-disabled': 'Ce compte administrateur est désactivé.',
+        'auth/too-many-requests': 'Trop de tentatives. Réessayez dans quelques minutes.',
+        'auth/unauthorized-domain': 'Domaine local non autorisé par Firebase. Utilisez http://localhost:4173 ou ajoutez votre domaine dans Firebase Console > Authentication > Settings > Authorized domains.',
+        'auth/network-request-failed': 'Connexion Firebase impossible. Vérifiez votre connexion internet et les bloqueurs du navigateur.',
+      };
+      toast.error(messages[err.code] || `Erreur de connexion (${err.code || 'inconnue'}).`);
     } finally {
       setLoggingIn(false);
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    if (!adminEmail) {
+      setResetMessage('Saisissez votre adresse e-mail administrateur.');
+      return;
+    }
+    setSendingReset(true);
+    setResetMessage('');
+    try {
+      await sendPasswordResetEmail(auth, adminEmail);
+      setResetMessage('Lien envoyé. Vérifiez votre boîte de réception et vos spams.');
+      toast.success('Lien de réinitialisation envoyé.');
+    } catch (err: any) {
+      console.error(err);
+      const message = err.code === 'auth/user-not-found'
+        ? 'Aucun compte Firebase ne correspond à cette adresse.'
+        : err.code === 'auth/invalid-email'
+          ? 'Adresse e-mail invalide.'
+          : `Impossible d’envoyer le lien (${err.code || 'erreur inconnue'}).`;
+      setResetMessage(message);
+      toast.error(message);
+    } finally {
+      setSendingReset(false);
     }
   };
 
@@ -487,12 +524,16 @@ Nos experts se tiennent prêts à concevoir avec vous un plan d'action sur-mesur
       return;
     }
     setSaving(true);
+    setSaveNotice({ type: 'saving', message: 'Enregistrement de l’article en cours...' });
     try {
       await saveBlogArticle(selectedBlogArticle);
+      setHasUnsavedChanges(false);
+      setSaveNotice({ type: 'success', message: 'Article enregistré et synchronisé avec Firebase.' });
       toast.success("Article de blog enregistré !");
       setIsEditingBlogArticle(false);
       setSelectedBlogArticle(null);
     } catch (err: any) {
+      setSaveNotice({ type: 'error', message: `Échec de l'enregistrement : ${err.message}` });
       toast.error("Erreur de sauvegarde Blog : " + err.message);
     } finally {
       setSaving(false);
@@ -506,6 +547,41 @@ Nos experts se tiennent prêts à concevoir avec vous un plan d'action sur-mesur
       toast.success("Article supprimé.");
     } catch (err: any) {
       toast.error("Erreur : " + err.message);
+    }
+  };
+
+  const handleAddSector = async () => {
+    const sectors = homepageData.sectors || [];
+    const newSector = {
+      title: 'Nouveau pôle',
+      description: 'Présentez ici votre nouvelle expertise.',
+      iconName: 'Briefcase',
+      link: '/contact'
+    };
+    setSaveNotice({ type: 'saving', message: 'Ajout du pôle en cours...' });
+    try {
+      await saveHomepageData({ sectors: [...sectors, newSector] });
+      setSaveNotice({ type: 'success', message: 'Nouveau pôle ajouté. Vous pouvez maintenant le personnaliser.' });
+    } catch (err: any) {
+      setSaveNotice({ type: 'error', message: `Échec de l'ajout : ${err.message}` });
+      toast.error("Erreur lors de l'ajout du pôle : " + err.message);
+    }
+  };
+
+  const handleDeleteSector = async (index: number) => {
+    const sectors = homepageData.sectors || [];
+    if (sectors.length <= 1) {
+      toast.error('Conservez au moins un pôle d’activité.');
+      return;
+    }
+    if (!window.confirm(`Supprimer le pôle « ${sectors[index].title} » ?`)) return;
+    setSaveNotice({ type: 'saving', message: 'Suppression du pôle en cours...' });
+    try {
+      await saveHomepageData({ sectors: sectors.filter((_, sectorIndex) => sectorIndex !== index) });
+      setSaveNotice({ type: 'success', message: 'Pôle supprimé et page d’accueil synchronisée.' });
+    } catch (err: any) {
+      setSaveNotice({ type: 'error', message: `Échec de la suppression : ${err.message}` });
+      toast.error("Erreur lors de la suppression du pôle : " + err.message);
     }
   };
 
@@ -545,13 +621,35 @@ Nos experts se tiennent prêts à concevoir avec vous un plan d'action sur-mesur
         facebook: contactData.facebook || '',
         instagram: contactData.instagram || '',
         youtube: contactData.youtube || '',
+        socialEnabled: {
+          linkedin: contactData.socialEnabled?.linkedin ?? Boolean(contactData.linkedin),
+          github: contactData.socialEnabled?.github ?? Boolean(contactData.github),
+          twitter: contactData.socialEnabled?.twitter ?? Boolean(contactData.twitter),
+          facebook: contactData.socialEnabled?.facebook ?? Boolean(contactData.facebook),
+          instagram: contactData.socialEnabled?.instagram ?? Boolean(contactData.instagram),
+          youtube: contactData.socialEnabled?.youtube ?? Boolean(contactData.youtube)
+        },
         activePayments: contactData.activePayments || [],
         partners: contactData.partners || [],
         newsletterWebhookUrl: contactData.newsletterWebhookUrl || '',
-        systemeIoFormUrl: contactData.systemeIoFormUrl || ''
+        systemeIoFormUrl: contactData.systemeIoFormUrl || '',
+        wahornouUrl: contactData.wahornouUrl || 'https://wahornou.bj',
+        wahornouLabel: contactData.wahornouLabel || 'WAHONOU',
+        wahornouDescription: contactData.wahornouDescription || 'Boutique officielle'
       });
     }
   }, [homepageData, contactData]);
+
+  useEffect(() => {
+    const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        event.preventDefault();
+        event.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', warnBeforeLeaving);
+    return () => window.removeEventListener('beforeunload', warnBeforeLeaving);
+  }, [hasUnsavedChanges]);
 
   if (hasSuperAdmin === null || authLoading || cmsLoading) {
     return (
@@ -707,6 +805,19 @@ Nos experts se tiennent prêts à concevoir avec vous un plan d'action sur-mesur
               >
                 {loggingIn ? <Loader2 className="animate-spin" size={18}/> : "Se connecter au CMS"}
               </button>
+              <button
+                type="button"
+                onClick={handlePasswordReset}
+                disabled={sendingReset}
+                className="w-full text-blue-300 hover:text-white text-xs font-bold transition-colors disabled:opacity-60"
+              >
+                {sendingReset ? 'Envoi du lien...' : 'Mot de passe oublié ?'}
+              </button>
+              {resetMessage && (
+                <p className="text-center text-xs font-medium text-blue-200" role="status">
+                  {resetMessage}
+                </p>
+              )}
             </form>
           )}
 
@@ -736,11 +847,15 @@ Nos experts se tiennent prêts à concevoir avec vous un plan d'action sur-mesur
   const handleSaveHeroGeneral = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+    setSaveNotice({ type: 'saving', message: 'Enregistrement du contenu en cours...' });
     try {
       await saveHomepageData(heroForm);
+      setHasUnsavedChanges(false);
+      setSaveNotice({ type: 'success', message: 'Modifications enregistrées et synchronisées avec Firebase.' });
       toast.success("Contenus Hero et Général enregistrés !");
     } catch (err: any) {
       console.error(err);
+      setSaveNotice({ type: 'error', message: `Échec de l'enregistrement : ${err.message}` });
       toast.error("Erreur lors de la sauvegarde : " + err.message);
     } finally {
       setSaving(false);
@@ -750,11 +865,15 @@ Nos experts se tiennent prêts à concevoir avec vous un plan d'action sur-mesur
   const handleSaveContact = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+    setSaveNotice({ type: 'saving', message: 'Enregistrement des coordonnées en cours...' });
     try {
       await saveContactData(contactForm);
+      setHasUnsavedChanges(false);
+      setSaveNotice({ type: 'success', message: 'Coordonnées enregistrées et synchronisées avec Firebase.' });
       toast.success("Coordonnées de contact enregistrées !");
     } catch (err: any) {
       console.error(err);
+      setSaveNotice({ type: 'error', message: `Échec de l'enregistrement : ${err.message}` });
       toast.error("Erreur : " + err.message);
     } finally {
       setSaving(false);
@@ -811,12 +930,16 @@ Nos experts se tiennent prêts à concevoir avec vous un plan d'action sur-mesur
       return;
     }
     setSaving(true);
+    setSaveNotice({ type: 'saving', message: 'Enregistrement du projet SaaS en cours...' });
     try {
       await saveSaasProject(selectedSaas as SaasProject);
+      setHasUnsavedChanges(false);
+      setSaveNotice({ type: 'success', message: 'Projet SaaS enregistré et synchronisé avec Firebase.' });
       toast.success("Projet SaaS enregistré avec succès !");
       setIsEditingSaas(false);
       setSelectedSaas(null);
     } catch (err: any) {
+      setSaveNotice({ type: 'error', message: `Échec de l'enregistrement : ${err.message}` });
       toast.error("Erreur SaaS : " + err.message);
     } finally {
       setSaving(false);
@@ -871,12 +994,16 @@ Nos experts se tiennent prêts à concevoir avec vous un plan d'action sur-mesur
       return;
     }
     setSaving(true);
+    setSaveNotice({ type: 'saving', message: 'Enregistrement de la formation en cours...' });
     try {
       await saveFormation(selectedFormation);
+      setHasUnsavedChanges(false);
+      setSaveNotice({ type: 'success', message: 'Formation enregistrée et synchronisée avec Firebase.' });
       toast.success("Formation enregistrée avec succès !");
       setIsEditingFormation(false);
       setSelectedFormation(null);
     } catch (err: any) {
+      setSaveNotice({ type: 'error', message: `Échec de l'enregistrement : ${err.message}` });
       toast.error("Erreur Formation : " + err.message);
     } finally {
       setSaving(false);
@@ -919,12 +1046,16 @@ Nos experts se tiennent prêts à concevoir avec vous un plan d'action sur-mesur
       return;
     }
     setSaving(true);
+    setSaveNotice({ type: 'saving', message: 'Enregistrement du membre en cours...' });
     try {
       await saveTeamMember(selectedMember);
+      setHasUnsavedChanges(false);
+      setSaveNotice({ type: 'success', message: 'Membre enregistré et synchronisé avec Firebase.' });
       toast.success("Membre d'équipe enregistré !");
       setIsEditingMember(false);
       setSelectedMember(null);
     } catch (err: any) {
+      setSaveNotice({ type: 'error', message: `Échec de l'enregistrement : ${err.message}` });
       toast.error("Erreur Membre : " + err.message);
     } finally {
       setSaving(false);
@@ -1035,6 +1166,22 @@ Nos experts se tiennent prêts à concevoir avec vous un plan d'action sur-mesur
 
       {/* Main Content */}
       <div className="flex-1 p-4 md:p-8 overflow-y-auto w-full">
+        {saveNotice && (
+          <div className={`mb-6 rounded-xl border px-4 py-3 text-sm font-bold ${
+            saveNotice.type === 'saving'
+              ? 'border-blue-200 bg-blue-50 text-blue-800'
+              : saveNotice.type === 'success'
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                : 'border-red-200 bg-red-50 text-red-800'
+          }`} role="status">
+            {saveNotice.message}
+          </div>
+        )}
+        {hasUnsavedChanges && (
+          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800" role="status">
+            Modifications en attente : pensez à enregistrer avant de quitter cette page.
+          </div>
+        )}
         
         {/* =======================
             TAB: HERO & GENERAL
@@ -1048,7 +1195,12 @@ Nos experts se tiennent prêts à concevoir avec vous un plan d'action sur-mesur
               </div>
             </div>
 
-            <form onSubmit={handleSaveHeroGeneral} className="space-y-6">
+            <form onSubmit={handleSaveHeroGeneral} onChange={() => setHasUnsavedChanges(true)} className="space-y-6">
+              <div className="flex justify-end">
+                <button type="submit" disabled={saving} className="bg-[#1A2CB5] text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-black transition-colors shadow-md">
+                  {saving ? <Loader2 className="animate-spin" size={18}/> : <Save size={18}/>} Enregistrer
+                </button>
+              </div>
               <div className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm space-y-6">
                 <h2 className="text-lg font-bold text-gray-900 border-b pb-2">Hero Header</h2>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1181,18 +1333,29 @@ Nos experts se tiennent prêts à concevoir avec vous un plan d'action sur-mesur
           <div className="w-full max-w-7xl mx-auto animate-in fade-in duration-300">
             <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-200">
               <div>
-                <h1 className="text-3xl font-black text-gray-900 flex items-center gap-3"><Layers className="text-[#1A2CB5]"/> Secteurs d'Activité (Les 6 Pôles)</h1>
-                <p className="text-gray-500 font-medium mt-1">Éditez les blocs de présentation des pôles d'activités sur la page d'accueil.</p>
+                <h1 className="text-3xl font-black text-gray-900 flex items-center gap-3"><Layers className="text-[#1A2CB5]"/> Secteurs d'Activité</h1>
+                <p className="text-gray-500 font-medium mt-1">Ajoutez, modifiez ou supprimez les pôles affichés sur la page d'accueil.</p>
               </div>
             </div>
 
             <div className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm space-y-8">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-black text-gray-900">Services Freeman configurés</h2>
+                  <p className="text-xs text-gray-500 font-medium">Gérez tous les services, filiales et services en développement du site.</p>
+                </div>
+                <button type="button" onClick={handleAddSector} className="bg-[#1A2CB5] text-white px-4 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-black transition-colors shadow-sm">
+                  <Plus size={17} /> Ajouter un pôle
+                </button>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {(homepageData.sectors || []).map((sector, idx) => (
                   <div key={idx} className="border border-gray-100 p-6 rounded-2xl bg-gray-50/50 space-y-4">
                     <div className="flex items-center justify-between">
                       <span className="bg-[#1A2CB5]/10 text-[#1A2CB5] px-3 py-1 rounded-full text-xs font-black">PÔLE #{idx + 1}</span>
-                      <span className="font-mono text-xs text-gray-400">Icône : {sector.iconName}</span>
+                      <button type="button" onClick={() => handleDeleteSector(idx)} className="text-red-500 hover:text-white hover:bg-red-500 p-1.5 rounded-lg transition-colors" title="Supprimer ce service" aria-label={`Supprimer ${sector.title}`}>
+                        <Trash2 size={15} />
+                      </button>
                     </div>
                     <div className="space-y-3">
                       <div>
@@ -1203,7 +1366,7 @@ Nos experts se tiennent prêts à concevoir avec vous un plan d'action sur-mesur
                           onChange={e => {
                             const newSectors = [...(homepageData.sectors || [])];
                             newSectors[idx].title = e.target.value;
-                            saveHomepageData({ sectors: newSectors });
+                            saveHomepageData({ sectors: newSectors }).then(() => setSaveNotice({ type: 'success', message: 'Pôle enregistré.' })).catch((err: any) => setSaveNotice({ type: 'error', message: `Échec de l'enregistrement : ${err.message}` }));
                           }} 
                           className="w-full bg-white border border-gray-200 p-2.5 rounded-lg font-bold" 
                         />
@@ -1216,9 +1379,37 @@ Nos experts se tiennent prêts à concevoir avec vous un plan d'action sur-mesur
                           onChange={e => {
                             const newSectors = [...(homepageData.sectors || [])];
                             newSectors[idx].description = e.target.value;
-                            saveHomepageData({ sectors: newSectors });
+                            saveHomepageData({ sectors: newSectors }).then(() => setSaveNotice({ type: 'success', message: 'Pôle enregistré.' })).catch((err: any) => setSaveNotice({ type: 'error', message: `Échec de l'enregistrement : ${err.message}` }));
                           }} 
                           className="w-full bg-white border border-gray-200 p-2.5 rounded-lg font-medium text-gray-600" 
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 mb-1">Icône Lucide</label>
+                        <input
+                          type="text"
+                          value={sector.iconName}
+                          onChange={e => {
+                            const newSectors = [...(homepageData.sectors || [])];
+                            newSectors[idx] = { ...newSectors[idx], iconName: e.target.value };
+                            saveHomepageData({ sectors: newSectors }).then(() => setSaveNotice({ type: 'success', message: 'Pôle enregistré.' })).catch((err: any) => setSaveNotice({ type: 'error', message: `Échec de l'enregistrement : ${err.message}` }));
+                          }}
+                          className="w-full bg-white border border-gray-200 p-2.5 rounded-lg font-mono text-xs"
+                          placeholder="Monitor, Briefcase..."
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 mb-1">Sous-services (un par ligne)</label>
+                        <textarea
+                          rows={4}
+                          value={(sector.subServices || []).join('\n')}
+                          onChange={e => {
+                            const newSectors = [...(homepageData.sectors || [])];
+                            newSectors[idx] = { ...newSectors[idx], subServices: e.target.value.split('\n').map(value => value.trim()).filter(Boolean) };
+                            saveHomepageData({ sectors: newSectors }).then(() => setSaveNotice({ type: 'success', message: 'Service et sous-services enregistrés.' })).catch((err: any) => setSaveNotice({ type: 'error', message: `Échec de l'enregistrement : ${err.message}` }));
+                          }}
+                          placeholder="Un sous-service par ligne"
+                          className="w-full bg-white border border-gray-200 p-2.5 rounded-lg font-medium text-xs resize-y"
                         />
                       </div>
                       <div>
@@ -1229,7 +1420,7 @@ Nos experts se tiennent prêts à concevoir avec vous un plan d'action sur-mesur
                           onChange={e => {
                             const newSectors = [...(homepageData.sectors || [])];
                             newSectors[idx].link = e.target.value;
-                            saveHomepageData({ sectors: newSectors });
+                            saveHomepageData({ sectors: newSectors }).then(() => setSaveNotice({ type: 'success', message: 'Pôle enregistré.' })).catch((err: any) => setSaveNotice({ type: 'error', message: `Échec de l'enregistrement : ${err.message}` }));
                           }} 
                           className="w-full bg-white border border-gray-200 p-2.5 rounded-lg font-mono text-xs text-gray-600" 
                         />
@@ -1289,7 +1480,12 @@ Nos experts se tiennent prêts à concevoir avec vous un plan d'action sur-mesur
                   <button onClick={() => setIsEditingSaas(false)} className="text-gray-500 hover:text-black font-bold flex items-center gap-1"><ArrowLeft size={16}/> Retour</button>
                 </div>
 
-                <form onSubmit={handleSaveSaas} className="space-y-4 font-bold text-gray-700">
+                <form onSubmit={handleSaveSaas} onChange={() => setHasUnsavedChanges(true)} className="space-y-4 font-bold text-gray-700">
+                  <div className="flex justify-end">
+                    <button type="submit" disabled={saving} className="bg-[#1A2CB5] text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-black transition-colors shadow-md">
+                      {saving ? <Loader2 className="animate-spin" size={18}/> : <Save size={18}/>} Enregistrer
+                    </button>
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs mb-1">Nom du SaaS</label>
@@ -1432,7 +1628,12 @@ Nos experts se tiennent prêts à concevoir avec vous un plan d'action sur-mesur
                   <button onClick={() => setIsEditingFormation(false)} className="text-gray-500 hover:text-black font-bold flex items-center gap-1"><ArrowLeft size={16}/> Retour</button>
                 </div>
 
-                <form onSubmit={handleSaveFormation} className="space-y-4 font-bold text-gray-700">
+                <form onSubmit={handleSaveFormation} onChange={() => setHasUnsavedChanges(true)} className="space-y-4 font-bold text-gray-700">
+                  <div className="flex justify-end">
+                    <button type="submit" disabled={saving} className="bg-[#1A2CB5] text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-black transition-colors shadow-md">
+                      {saving ? <Loader2 className="animate-spin" size={18}/> : <Save size={18}/>} Enregistrer
+                    </button>
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs mb-1">Titre de la Formation</label>
@@ -1520,7 +1721,12 @@ Nos experts se tiennent prêts à concevoir avec vous un plan d'action sur-mesur
             {/* Contacts vitrine */}
             <div className="w-full bg-white border border-gray-200 rounded-3xl p-8 shadow-sm">
               <h2 className="text-xl font-black text-gray-900 flex items-center gap-2 mb-6 border-b pb-3"><Phone className="text-[#1A2CB5]"/> Coordonnées de Contact Freeman</h2>
-              <form onSubmit={handleSaveContact} className="space-y-4 font-bold text-gray-700">
+              <form onSubmit={handleSaveContact} onChange={() => setHasUnsavedChanges(true)} className="space-y-4 font-bold text-gray-700">
+                <div className="flex justify-end">
+                  <button type="submit" disabled={saving} className="bg-[#1A2CB5] text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-black transition-colors shadow-md">
+                    {saving ? <Loader2 className="animate-spin" size={18}/> : <Save size={18}/>} Enregistrer
+                  </button>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-bold text-gray-700">
                   <div>
                     <label className="block mb-1">Email de Contact</label>
@@ -1546,30 +1752,20 @@ Nos experts se tiennent prêts à concevoir avec vous un plan d'action sur-mesur
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-                  <div>
-                    <label className="block mb-1">Lien LinkedIn</label>
-                    <input type="text" value={contactForm.linkedin || ''} onChange={e => setContactForm({...contactForm, linkedin: e.target.value})} className="w-full p-2.5 border rounded-lg font-mono text-xs text-gray-600 focus:border-[#1A2CB5] outline-none" />
-                  </div>
-                  <div>
-                    <label className="block mb-1">Lien GitHub</label>
-                    <input type="text" value={contactForm.github || ''} onChange={e => setContactForm({...contactForm, github: e.target.value})} className="w-full p-2.5 border rounded-lg font-mono text-xs text-gray-600 focus:border-[#1A2CB5] outline-none" />
-                  </div>
-                  <div>
-                    <label className="block mb-1">Lien Twitter</label>
-                    <input type="text" value={contactForm.twitter || ''} onChange={e => setContactForm({...contactForm, twitter: e.target.value})} className="w-full p-2.5 border rounded-lg font-mono text-xs text-gray-600 focus:border-[#1A2CB5] outline-none" />
-                  </div>
-                  <div>
-                    <label className="block mb-1">Lien Facebook</label>
-                    <input type="text" value={contactForm.facebook || ''} onChange={e => setContactForm({...contactForm, facebook: e.target.value})} className="w-full p-2.5 border rounded-lg font-mono text-xs text-gray-600 focus:border-[#1A2CB5] outline-none" />
-                  </div>
-                  <div>
-                    <label className="block mb-1">Lien Instagram</label>
-                    <input type="text" value={contactForm.instagram || ''} onChange={e => setContactForm({...contactForm, instagram: e.target.value})} className="w-full p-2.5 border rounded-lg font-mono text-xs text-gray-600 focus:border-[#1A2CB5] outline-none" />
-                  </div>
-                  <div>
-                    <label className="block mb-1">Lien YouTube</label>
-                    <input type="text" value={contactForm.youtube || ''} onChange={e => setContactForm({...contactForm, youtube: e.target.value})} className="w-full p-2.5 border rounded-lg font-mono text-xs text-gray-600 focus:border-[#1A2CB5] outline-none" />
-                  </div>
+                  {(['linkedin', 'github', 'twitter', 'facebook', 'instagram', 'youtube'] as const).map(network => (
+                    <div key={network}>
+                      <label className="flex items-center justify-between gap-2 mb-1">
+                        <span>Lien {network === 'youtube' ? 'YouTube' : network.charAt(0).toUpperCase() + network.slice(1)}</span>
+                        <input
+                          type="checkbox"
+                          checked={Boolean((contactForm.socialEnabled as any)?.[network])}
+                          onChange={e => setContactForm({ ...contactForm, socialEnabled: { ...(contactForm.socialEnabled || {}), [network]: e.target.checked } })}
+                          title={`Afficher ${network}`}
+                        />
+                      </label>
+                      <input type="url" value={(contactForm as any)[network] || ''} onChange={e => setContactForm({ ...contactForm, [network]: e.target.value } as any)} className="w-full p-2.5 border rounded-lg font-mono text-xs text-gray-600 focus:border-[#1A2CB5] outline-none" placeholder={`https://${network}.com/...`} />
+                    </div>
+                  ))}
                 </div>
 
                 <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100 space-y-4">
@@ -1683,6 +1879,46 @@ Nos experts se tiennent prêts à concevoir avec vous un plan d'action sur-mesur
                         <Plus size={16} /> Ajouter à la liste
                       </button>
                     </div>
+                  </div>
+                </div>
+
+                {/* Wahornou - lien externe indépendant */}
+                <div className="bg-amber-50 p-6 rounded-2xl border border-amber-200 space-y-4 mt-2">
+                  <div>
+                    <h3 className="text-base font-bold text-gray-900 border-b border-amber-200 pb-2">Lien Wahornou</h3>
+                    <p className="text-xs text-gray-600 font-medium mt-1">Wahornou reste un site WordPress externe et indépendant de Freeman Business Market.</p>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-bold text-gray-700 mb-1">URL externe</label>
+                      <input
+                        type="url"
+                        value={(contactForm as any).wahornouUrl || ''}
+                        onChange={e => setContactForm({ ...contactForm, wahornouUrl: e.target.value } as any)}
+                        placeholder="https://wahornou.bj"
+                        className="w-full bg-white border border-amber-200 p-2.5 rounded-lg font-mono text-xs outline-none focus:border-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Nom affiché</label>
+                      <input
+                        type="text"
+                        value={(contactForm as any).wahornouLabel || ''}
+                        onChange={e => setContactForm({ ...contactForm, wahornouLabel: e.target.value } as any)}
+                        placeholder="WAHONOU"
+                        className="w-full bg-white border border-amber-200 p-2.5 rounded-lg font-bold outline-none focus:border-amber-500"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Texte sous le lien</label>
+                    <input
+                      type="text"
+                      value={(contactForm as any).wahornouDescription || ''}
+                      onChange={e => setContactForm({ ...contactForm, wahornouDescription: e.target.value } as any)}
+                      placeholder="Boutique officielle"
+                      className="w-full bg-white border border-amber-200 p-2.5 rounded-lg font-medium outline-none focus:border-amber-500"
+                    />
                   </div>
                 </div>
 
@@ -1823,7 +2059,12 @@ Nos experts se tiennent prêts à concevoir avec vous un plan d'action sur-mesur
                     <button onClick={() => setIsEditingMember(false)} className="text-gray-500 hover:text-black font-bold flex items-center gap-1"><ArrowLeft size={16}/> Annuler</button>
                   </div>
 
-                  <form onSubmit={handleSaveMember} className="space-y-4 font-bold text-gray-700">
+                  <form onSubmit={handleSaveMember} onChange={() => setHasUnsavedChanges(true)} className="space-y-4 font-bold text-gray-700">
+                    <div className="flex justify-end">
+                      <button type="submit" disabled={saving} className="bg-[#1A2CB5] text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-black transition-colors shadow-md">
+                        {saving ? <Loader2 className="animate-spin" size={18}/> : <Save size={18}/>} Enregistrer
+                      </button>
+                    </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-xs mb-1">Nom Complet</label>
@@ -2294,7 +2535,12 @@ Nos experts se tiennent prêts à concevoir avec vous un plan d'action sur-mesur
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                   
                   {/* LEFT COLUMN: Editor Form (7/12 cols) */}
-                  <form onSubmit={handleSaveBlogArticle} className="lg:col-span-7 bg-white p-8 rounded-3xl border border-gray-200 shadow-sm space-y-6 font-bold text-gray-700">
+                  <form onSubmit={handleSaveBlogArticle} onChange={() => setHasUnsavedChanges(true)} className="lg:col-span-7 bg-white p-8 rounded-3xl border border-gray-200 shadow-sm space-y-6 font-bold text-gray-700">
+                    <div className="flex justify-end">
+                      <button type="submit" disabled={saving} className="bg-[#1A2CB5] text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-black transition-colors shadow-md">
+                        {saving ? <Loader2 className="animate-spin" size={18}/> : <Save size={18}/>} Enregistrer
+                      </button>
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <label className="block text-xs mb-1">Titre de l'Article</label>

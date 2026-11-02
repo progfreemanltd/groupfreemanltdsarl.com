@@ -16,17 +16,16 @@ service cloud.firestore {
       return isAuthenticated() && 
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin';
     }
+
+    function isVendor() {
+      return isAuthenticated() &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'vendor';
+    }
     
     // Check if user is Admin (Super Admin or Admin role)
     function isAdmin() {
       return isAuthenticated() && 
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['super_admin', 'admin'];
-    }
-    
-    // Check if user is Vendor
-    function isVendor() {
-      return isAuthenticated() && 
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'vendor';
     }
     
     // Check if user owns the resource
@@ -38,6 +37,14 @@ service cloud.firestore {
     function isModerator() {
       return isAuthenticated() && 
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['super_admin', 'admin', 'moderator'];
+    }
+
+    function isSafePublicContact() {
+      return resource.data.keys().hasOnly([
+        'email', 'phone', 'address', 'linkedin', 'github', 'twitter',
+        'facebook', 'instagram', 'youtube', 'socialEnabled', 'activePayments',
+        'partners', 'wahornouUrl', 'wahornouLabel', 'wahornouDescription'
+      ]);
     }
     
     // ==========================================
@@ -85,21 +92,13 @@ service cloud.firestore {
     // PRODUCTS COLLECTION
     // ==========================================
     match /products/{productId} {
-      // Anyone can read published products
-      allow read: if resource.data.published == true || isSuperAdmin();
+      // Anyone can read active products; validated vendors can publish pending products
+      allow read: if resource.data.status == 'active' || isSuperAdmin();
       
-      // Only Admins can create products
-      allow create: if isAdmin() && 
-                      request.resource.data.sellerId == request.auth.uid &&
-                      request.resource.data.createdAt == request.time;
-      
-      // Vendors can update their own products, Admins can update any
-      allow update: if (isVendor() && resource.data.sellerId == request.auth.uid) || 
-                       isAdmin();
-      
-      // Vendors can delete their own products, Admins can delete any
-      allow delete: if (isVendor() && resource.data.sellerId == request.auth.uid) || 
-                       isSuperAdmin();
+      // Vendors publish their own products; admins manage the entire catalog
+      allow create: if isVendor() && request.resource.data.vendorId == request.auth.uid && request.resource.data.status == 'pending';
+      allow update: if isSuperAdmin() || (isVendor() && resource.data.vendorId == request.auth.uid && request.resource.data.status == 'pending');
+      allow delete: if isSuperAdmin() || (isVendor() && resource.data.vendorId == request.auth.uid);
     }
     
     // ==========================================
@@ -148,12 +147,38 @@ service cloud.firestore {
     // CMS CONTENT COLLECTION
     // ==========================================
     match /cms_content/{contentId} {
-      // Anyone can read published content
-      allow read: if resource.data.published == true || isSuperAdmin();
+      // Only known public documents can be read anonymously. Contact is public
+      // only while it contains no private integration settings.
+      allow read: if isAdmin() || contentId == 'homepage' ||
+                    (contentId == 'contact' &&
+                      (!exists(/databases/$(database)/documents/cms_content/contact) || isSafePublicContact()));
       
       // Only Super Admins can create/update/delete
-      allow create, update, delete: if isSuperAdmin() && 
-                                       request.resource.data.updatedBy == request.auth.uid;
+      allow create, update: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    // Private CMS integrations; never expose webhook endpoints to visitors.
+    match /cms_private/{document=**} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    // ==========================================
+    // CMS DATA COLLECTIONS USED BY THE CLIENT
+    // ==========================================
+    match /saas/{projectId} {
+      allow read: if true;
+      allow create, update, delete: if isSuperAdmin();
+    }
+
+    match /team/{memberId} {
+      allow read: if true;
+      allow create, update, delete: if isSuperAdmin();
+    }
+
+    match /blog/{articleId} {
+      allow read: if true;
+      allow create, update, delete: if isSuperAdmin();
     }
     
     // ==========================================

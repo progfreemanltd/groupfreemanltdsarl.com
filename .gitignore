@@ -1,6 +1,5 @@
 # Dependencies
 node_modules/
-package-lock.json
 
 # Environment Variables
 .env
@@ -16,6 +15,7 @@ build/
 .firebase/
 .firebaserc
 firebase-debug.log*
+firestore-debug.log
 
 # IDE
 .vscode/

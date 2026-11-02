@@ -197,15 +197,9 @@ export function ContactSection() {
 
             {/* Social Links Row */}
             <div className="grid grid-cols-3 gap-6">
-              <a href={contactData.linkedin || "#"} target="_blank" rel="noopener noreferrer" className="glass-card-interactive py-6 rounded-2xl flex items-center justify-center text-slate-600 hover:text-blue-600 transition-all border border-white/60 bg-white/30 hover:bg-white/60">
-                <Linkedin size={24} />
-              </a>
-              <a href={contactData.github || "#"} target="_blank" rel="noopener noreferrer" className="glass-card-interactive py-6 rounded-2xl flex items-center justify-center text-slate-600 hover:text-slate-800 transition-all border border-white/60 bg-white/30 hover:bg-white/60">
-                <Github size={24} />
-              </a>
-              <a href={contactData.twitter || "#"} target="_blank" rel="noopener noreferrer" className="glass-card-interactive py-6 rounded-2xl flex items-center justify-center text-slate-600 hover:text-sky-500 transition-all border border-white/60 bg-white/30 hover:bg-white/60">
-                <Twitter size={24} />
-              </a>
+              {contactData.linkedin && (contactData.socialEnabled?.linkedin ?? true) && <a href={contactData.linkedin} target="_blank" rel="noopener noreferrer" className="glass-card-interactive py-6 rounded-2xl flex items-center justify-center text-slate-600 hover:text-blue-600 transition-all border border-white/60 bg-white/30 hover:bg-white/60"><Linkedin size={24} /></a>}
+              {contactData.github && (contactData.socialEnabled?.github ?? true) && <a href={contactData.github} target="_blank" rel="noopener noreferrer" className="glass-card-interactive py-6 rounded-2xl flex items-center justify-center text-slate-600 hover:text-slate-800 transition-all border border-white/60 bg-white/30 hover:bg-white/60"><Github size={24} /></a>}
+              {contactData.twitter && (contactData.socialEnabled?.twitter ?? true) && <a href={contactData.twitter} target="_blank" rel="noopener noreferrer" className="glass-card-interactive py-6 rounded-2xl flex items-center justify-center text-slate-600 hover:text-sky-500 transition-all border border-white/60 bg-white/30 hover:bg-white/60"><Twitter size={24} /></a>}
             </div>
             
           </motion.div>

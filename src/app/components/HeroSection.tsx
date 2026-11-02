@@ -34,8 +34,8 @@ export function HeroSection() {
               transition={{ duration: 0.8, delay: 0.1, ease: "easeOut" }}
               className="text-5xl sm:text-6xl lg:text-7xl xl:text-8xl font-black text-slate-800 tracking-tighter leading-[1.05]"
             >
-              DIGITAL<br />
-              <span className="text-gradient drop-shadow-sm">CRAFT.</span>
+              Freeman Group<br />
+              <span className="text-gradient drop-shadow-sm">L'EXCELLENCE.</span>
             </motion.h1>
 
             <motion.p
@@ -44,7 +44,7 @@ export function HeroSection() {
               transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
               className="font-['Inter'] text-lg sm:text-xl text-slate-600 max-w-2xl leading-relaxed font-medium"
             >
-              Conception et développement d'applications sur-mesure avec une approche Liquid Glass. L'élégance naturelle, claire et fluide au service de vos produits.
+              De l'ingénierie digitale à la construction BTP, Freeman Group accompagne les entreprises avec des solutions sur mesure en technologie, immobilier, commerce, hôtellerie et services. Une expertise intégrée pour transformer chaque ambition en projet concret et durable.
             </motion.p>
 
             <motion.div

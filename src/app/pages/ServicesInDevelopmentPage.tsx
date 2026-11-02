@@ -17,6 +17,7 @@ import {
   Lock
 } from 'lucide-react';
 import { Link } from 'react-router';
+import { useCMS } from '../context/CMSContext';
 
 const upcomingServices = [
   {
@@ -130,6 +131,10 @@ const upcomingServices = [
 ];
 
 export function ServicesInDevelopmentPage() {
+  const { homepageData } = useCMS();
+  const developmentService = homepageData.sectors.find(service => service.title === 'Services en développement');
+  const managedNames = developmentService?.subServices || [];
+
   return (
     <div className="flex flex-col w-full bg-[#fcfcfd] min-h-screen font-['Inter']">
       
@@ -150,7 +155,7 @@ export function ServicesInDevelopmentPage() {
           >
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-[#d4af37] text-sm font-semibold tracking-wide uppercase mb-6">
               <Sparkles size={16} />
-              Feuille de Route & Hub d'Innovation
+              Coming Soon · Laboratoire Freeman
             </div>
 
             <h1 className="text-4xl sm:text-6xl font-black tracking-tight mb-6 leading-tight">
@@ -158,18 +163,18 @@ export function ServicesInDevelopmentPage() {
             </h1>
 
             <p className="text-lg sm:text-xl text-gray-300 max-w-3xl mx-auto font-light leading-relaxed mb-10">
-              Freeman Group construit l’avenir à travers une stratégie d’expansion ambitieuse. Découvez les 9 filiales et projets structurants en cours de finalisation.
+              Découvrez les projets, filiales et services actuellement en préparation au laboratoire Freeman. Cette page présente notre feuille de route avant leur lancement officiel.
             </p>
 
             {/* Quick Metrics Bar */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto pt-6 border-t border-white/10">
               <div className="bg-white/5 backdrop-blur-md p-4 rounded-2xl border border-white/10">
                 <div className="text-3xl font-black text-[#d4af37]">9</div>
-                <div className="text-xs text-gray-300 font-medium">Projets Majeurs</div>
+                <div className="text-xs text-gray-300 font-medium">Projets en préparation</div>
               </div>
               <div className="bg-white/5 backdrop-blur-md p-4 rounded-2xl border border-white/10">
                 <div className="text-3xl font-black text-white">6</div>
-                <div className="text-xs text-gray-300 font-medium">Secteurs Stratégiques</div>
+                <div className="text-xs text-gray-300 font-medium">Lancements à venir</div>
               </div>
               <div className="bg-white/5 backdrop-blur-md p-4 rounded-2xl border border-white/10">
                 <div className="text-3xl font-black text-[#d4af37]">2026-2027</div>
@@ -190,6 +195,7 @@ export function ServicesInDevelopmentPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {upcomingServices.map((service, index) => {
             const Icon = service.icon;
+            const managedName = managedNames[index];
             return (
               <motion.div
                 key={service.id}
@@ -220,7 +226,7 @@ export function ServicesInDevelopmentPage() {
                     </div>
                     <div>
                       <h3 className="text-xl font-bold text-gray-900 group-hover:text-[#1A2CB5] transition-colors leading-snug">
-                        {service.name}
+                        {managedName || service.name}
                       </h3>
                       <p className="text-xs text-gray-500 font-medium mt-1">
                         {service.tagline}

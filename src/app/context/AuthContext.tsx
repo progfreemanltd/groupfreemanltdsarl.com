@@ -4,7 +4,7 @@ import { auth, db } from '../../lib/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 
 interface UserData {
-  role?: 'super_admin' | 'moderator' | 'finance' | 'fraud' | 'vendor' | 'customer';
+  role?: 'super_admin' | 'admin' | 'moderator' | 'finance' | 'fraud' | 'vendor' | 'customer';
   companyName?: string;
   name?: string;
   [key: string]: any;

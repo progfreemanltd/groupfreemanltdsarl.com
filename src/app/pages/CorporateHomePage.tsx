@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { ArrowRight } from 'lucide-react';
-import * as LucideIcons from 'lucide-react';
+import { Briefcase, ExternalLink, HardHat, HelpCircle, Hotel, Leaf, Monitor, Ruler, ShoppingBag, Sparkles, Users } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Link } from 'react-router';
 import { useCMS } from '../context/CMSContext';
+
+const sectorIcons = { Briefcase, ExternalLink, Monitor, HardHat, Users, Hotel, Ruler, ShoppingBag, Leaf, Sparkles };
 
 export function CorporateHomePage() {
   const { homepageData, saasProjectsList, formationsList } = useCMS();
@@ -27,8 +29,7 @@ export function CorporateHomePage() {
 
   // Helper dynamically resolving Lucide icons from string name
   const getIcon = (name: string) => {
-    const IconComponent = (LucideIcons as any)[name];
-    return IconComponent || LucideIcons.HelpCircle;
+    return sectorIcons[name as keyof typeof sectorIcons] || HelpCircle;
   };
 
   return (
@@ -91,7 +92,7 @@ export function CorporateHomePage() {
             <section key="sectors" className="py-24 bg-white relative z-10 border-t border-gray-50">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="text-center mb-16">
-                  <h2 className="text-3xl sm:text-4xl font-black text-black tracking-tight mb-4">Nos 6 Pôles d'Expertise</h2>
+                  <h2 className="text-3xl sm:text-4xl font-black text-black tracking-tight mb-4">Nos Pôles d'Expertise</h2>
                   <p className="text-gray-500 max-w-2xl mx-auto text-lg">
                     Une synergie de compétences dirigée par des experts reconnus dans leurs domaines respectifs.
                   </p>
@@ -113,13 +114,23 @@ export function CorporateHomePage() {
                           <IconComponent className="w-7 h-7 text-[#1A2CB5]" />
                         </div>
                         <h3 className="text-2xl font-bold text-black mb-3">{sector.title}</h3>
-                        <p className="text-gray-500 leading-relaxed mb-6">
+                        <p className="text-gray-500 leading-relaxed mb-4">
                           {sector.description}
                         </p>
-                        <Link to={sector.link} className="inline-flex items-center text-[#1A2CB5] font-semibold group/btn">
-                          Découvrir
-                          <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
-                        </Link>
+                        {sector.subServices && sector.subServices.length > 0 && (
+                          <ul className="mb-5 space-y-1 text-xs text-gray-500">
+                            {sector.subServices.slice(0, 4).map(subService => <li key={subService}>• {subService}</li>)}
+                          </ul>
+                        )}
+                        {sector.externalUrl ? (
+                          <a href={sector.externalUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center text-[#1A2CB5] font-semibold group/btn">
+                            Visiter le site <ExternalLink className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
+                          </a>
+                        ) : (
+                          <Link to={sector.link} className="inline-flex items-center text-[#1A2CB5] font-semibold group/btn">
+                            Découvrir <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
+                          </Link>
+                        )}
                       </motion.div>
                     );
                   })}
@@ -171,7 +182,7 @@ export function CorporateHomePage() {
                     <div className="absolute -bottom-8 -left-8 bg-white p-8 rounded-3xl shadow-xl border border-gray-100">
                       <div className="flex gap-4 items-center">
                         <div className="w-12 h-12 rounded-full bg-[#1A2CB5]/10 flex items-center justify-center">
-                          <LucideIcons.Users className="w-6 h-6 text-[#1A2CB5]" />
+                          <Users className="w-6 h-6 text-[#1A2CB5]" />
                         </div>
                         <div>
                           <p className="text-3xl font-black text-black">{homepageData.aboutStatNumber}</p>

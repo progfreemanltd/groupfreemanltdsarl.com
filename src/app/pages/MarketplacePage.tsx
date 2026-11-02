@@ -124,7 +124,7 @@ export function MarketplacePage() {
         {/* Product Grid */}
         <div className="col-span-1 lg:col-span-3">
           <div className="flex items-center justify-between mb-8 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-            <span className="text-gray-500 text-sm font-medium">Affichage de <strong className="text-black">{filteredProducts.length}</strong> annonces pro</span>
+              <span className="text-gray-500 text-sm font-medium">Affichage de <strong className="text-black">{filteredProducts.length}</strong> annonces pro</span>
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-400 font-medium">Trier par:</span>
               <select className="border border-gray-200 rounded-lg text-sm px-3 py-1.5 font-bold text-gray-800 bg-gray-50 focus:outline-none focus:border-[#1A2CB5] cursor-pointer">
@@ -146,7 +146,7 @@ export function MarketplacePage() {
             <div className="bg-white border text-center py-20 px-8 rounded-2xl border-dashed border-gray-200">
               <Search className="mx-auto text-gray-300 mb-4" size={48} />
               <h3 className="text-xl font-bold mb-2 text-gray-900">Aucune annonce trouvée</h3>
-              <p className="text-gray-500 mb-6 max-w-md mx-auto">La marketplace vient d'être lancée ! Soyez le premier vendeur à publier votre offre dans cette catégorie.</p>
+              <p className="text-gray-500 mb-6 max-w-md mx-auto">La marketplace B2B Freeman permet aux entreprises et vendeurs validés de proposer leurs produits et services.</p>
               <Link to="/vendeur/nouvelle-annonce" className="inline-block bg-[#1A2CB5] text-white font-bold px-6 py-3 rounded-xl hover:bg-black transition-colors">Déposer une annonce</Link>
             </div>
           ) : (

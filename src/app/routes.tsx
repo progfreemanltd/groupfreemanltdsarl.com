@@ -1,49 +1,15 @@
 import { createBrowserRouter } from "react-router";
+import type { ComponentType } from "react";
 import { CorporateLayout } from "./components/CorporateLayout";
 import { MarketplaceLayout } from "./components/MarketplaceLayout";
-import { CorporateHomePage } from "./pages/CorporateHomePage";
-import { AboutPage } from "./pages/AboutPage";
-import { CorporateServicesPage } from "./pages/CorporateServicesPage";
-import { PortfolioPage } from "./pages/PortfolioPage";
-import { InvestmentsPage } from "./pages/InvestmentsPage";
-import { BlogPage } from "./pages/BlogPage";
-import { CorporateContactPage } from "./pages/CorporateContactPage";
-import { MarketplacePage } from "./pages/MarketplacePage";
-import { VendorPricingPage } from "./pages/VendorPricingPage";
-import { VendorDashboardPage } from "./pages/VendorDashboardPage";
-import { VendorNewAdPage } from "./pages/VendorNewAdPage";
-import { ProductDetailPage } from "./pages/ProductDetailPage";
-import { CheckoutPage } from "./pages/CheckoutPage";
-import { CustomerDashboardPage } from "./pages/CustomerDashboardPage";
-import { MessagesPage } from "./pages/MessagesPage";
-import { LoginPage } from "./pages/LoginPage";
-import { AdminDashboardPage } from "./pages/AdminDashboardPage";
-import { InvoiceView } from "./pages/InvoiceView";
-import { CmsDashboardPage } from "./pages/CmsDashboardPage";
-import { FormationDetailPage } from "./pages/FormationDetailPage";
-import { SaasDetailPage } from "./pages/SaasDetailPage";
 
 import { DigitalLayout } from "./components/DigitalLayout";
-import { HomePage as DigitalHomePage } from "./pages/HomePage";
-import { ServicesPage as DigitalServicesPage } from "./pages/ServicesPage";
-import { SaasPage } from "./pages/SaasPage";
-import { ProjectsPage } from "./pages/ProjectsPage";
-import { FormationsPage } from "./pages/FormationsPage";
-import { TeamPage } from "./pages/TeamPage";
-import { ContactPage as DigitalContactPage } from "./pages/ContactPage";
 
-import { ServicesInDevelopmentPage } from "./pages/ServicesInDevelopmentPage";
-import { AchatLivraisonPage } from "./pages/AchatLivraisonPage";
-import { JardinagePage } from "./pages/JardinagePage";
-import { DigitalServicePage } from "./pages/DigitalServicePage";
-import { BtpServicePage } from "./pages/BtpServicePage";
-import { ManagementServicePage } from "./pages/ManagementServicePage";
-import { HotellerieServicePage } from "./pages/HotellerieServicePage";
-import { AmenagementServicePage } from "./pages/AmenagementServicePage";
-import { CommerceServicePage } from "./pages/CommerceServicePage";
-
-import { FreeToolsPage } from "./pages/FreeToolsPage";
-import { LegalPage } from "./pages/LegalPage";
+const lazyPage = (load: () => Promise<unknown>, exportName: string) => ({
+  lazy: async () => ({
+    Component: (await load() as Record<string, ComponentType>)[exportName],
+  }),
+});
 
 export const router = createBrowserRouter([
   // ── Corporate Site (Layout principal) ─────────────────────────
@@ -51,31 +17,31 @@ export const router = createBrowserRouter([
     path: "/",
     Component: CorporateLayout,
     children: [
-      { index: true, Component: CorporateHomePage },
-      { path: "about", Component: AboutPage },
-      { path: "portfolio", Component: PortfolioPage },
-      { path: "investments", Component: InvestmentsPage },
-      { path: "blog", Component: BlogPage },
-      { path: "contact", Component: CorporateContactPage },
-      { path: "connexion", Component: LoginPage },
-      { path: "outils", Component: FreeToolsPage },
-      { path: "mentions-legales", Component: LegalPage },
-      { path: "politique-confidentialite", Component: LegalPage },
-      { path: "cgv", Component: LegalPage },
+      { index: true, ...lazyPage(() => import("./pages/CorporateHomePage"), "CorporateHomePage") },
+      { path: "about", ...lazyPage(() => import("./pages/AboutPage"), "AboutPage") },
+      { path: "portfolio", ...lazyPage(() => import("./pages/PortfolioPage"), "PortfolioPage") },
+      { path: "investments", ...lazyPage(() => import("./pages/InvestmentsPage"), "InvestmentsPage") },
+      { path: "blog", ...lazyPage(() => import("./pages/BlogPage"), "BlogPage") },
+      { path: "contact", ...lazyPage(() => import("./pages/CorporateContactPage"), "CorporateContactPage") },
+      { path: "connexion", ...lazyPage(() => import("./pages/LoginPage"), "LoginPage") },
+      { path: "outils", ...lazyPage(() => import("./pages/FreeToolsPage"), "FreeToolsPage") },
+      { path: "mentions-legales", ...lazyPage(() => import("./pages/LegalPage"), "LegalPage") },
+      { path: "politique-confidentialite", ...lazyPage(() => import("./pages/LegalPage"), "LegalPage") },
+      { path: "cgv", ...lazyPage(() => import("./pages/LegalPage"), "LegalPage") },
 
       // Services — pages dédiées avec correspondances exactes d'abord
-      { path: "services", Component: CorporateServicesPage },
-      { path: "services/digital", Component: DigitalServicePage },
-      { path: "services/btp", Component: BtpServicePage },
-      { path: "services/management", Component: ManagementServicePage },
-      { path: "services/hotellerie", Component: HotellerieServicePage },
-      { path: "services/amenagement", Component: AmenagementServicePage },
-      { path: "services/commerce", Component: CommerceServicePage },
-      { path: "services/achat-livraison", Component: AchatLivraisonPage },
-      { path: "services/jardinage", Component: JardinagePage },
-      { path: "services/en-developpement", Component: ServicesInDevelopmentPage },
+      { path: "services", ...lazyPage(() => import("./pages/CorporateServicesPage"), "CorporateServicesPage") },
+      { path: "services/digital", ...lazyPage(() => import("./pages/DigitalServicePage"), "DigitalServicePage") },
+      { path: "services/btp", ...lazyPage(() => import("./pages/BtpServicePage"), "BtpServicePage") },
+      { path: "services/management", ...lazyPage(() => import("./pages/ManagementServicePage"), "ManagementServicePage") },
+      { path: "services/hotellerie", ...lazyPage(() => import("./pages/HotellerieServicePage"), "HotellerieServicePage") },
+      { path: "services/amenagement", ...lazyPage(() => import("./pages/AmenagementServicePage"), "AmenagementServicePage") },
+      { path: "services/commerce", ...lazyPage(() => import("./pages/CommerceServicePage"), "CommerceServicePage") },
+      { path: "services/achat-livraison", ...lazyPage(() => import("./pages/AchatLivraisonPage"), "AchatLivraisonPage") },
+      { path: "services/jardinage", ...lazyPage(() => import("./pages/JardinagePage"), "JardinagePage") },
+      { path: "services/en-developpement", ...lazyPage(() => import("./pages/ServicesInDevelopmentPage"), "ServicesInDevelopmentPage") },
       // Fallback pour les onglets /services?tab=xxx via useSearchParams
-      { path: "services/:pole", Component: CorporateServicesPage },
+      { path: "services/:pole", ...lazyPage(() => import("./pages/CorporateServicesPage"), "CorporateServicesPage") },
     ]
   },
 
@@ -84,48 +50,48 @@ export const router = createBrowserRouter([
     path: "/",
     Component: MarketplaceLayout,
     children: [
-      { path: "boutique", Component: MarketplacePage },
-      { path: "boutique/:id", Component: ProductDetailPage },
-      { path: "vendeur/abonnement", Component: VendorPricingPage },
-      { path: "vendeur/dashboard", Component: VendorDashboardPage },
-      { path: "vendeur/nouvelle-annonce", Component: VendorNewAdPage },
-      { path: "panier", Component: CheckoutPage },
-      { path: "client/dashboard", Component: CustomerDashboardPage },
-      { path: "boutique/facture/:id", Component: InvoiceView },
+      { path: "boutique", ...lazyPage(() => import("./pages/MarketplacePage"), "MarketplacePage") },
+      { path: "boutique/:id", ...lazyPage(() => import("./pages/ProductDetailPage"), "ProductDetailPage") },
+      { path: "vendeur/abonnement", ...lazyPage(() => import("./pages/VendorPricingPage"), "VendorPricingPage") },
+      { path: "vendeur/dashboard", ...lazyPage(() => import("./pages/VendorDashboardPage"), "VendorDashboardPage") },
+      { path: "vendeur/nouvelle-annonce", ...lazyPage(() => import("./pages/VendorNewAdPage"), "VendorNewAdPage") },
+      { path: "panier", ...lazyPage(() => import("./pages/CheckoutPage"), "CheckoutPage") },
+      { path: "client/dashboard", ...lazyPage(() => import("./pages/CustomerDashboardPage"), "CustomerDashboardPage") },
+      { path: "boutique/facture/:id", ...lazyPage(() => import("./pages/InvoiceView"), "InvoiceView") },
     ]
   },
 
   // ── Admin / CMS ───────────────────────────────────────────────
-  { path: "/admin/dashboard", Component: AdminDashboardPage },
-  { path: "/freemancms/admin", Component: CmsDashboardPage },
+  { path: "/admin/dashboard", ...lazyPage(() => import("./pages/AdminDashboardPage"), "AdminDashboardPage") },
+  { path: "/freemancms/admin", ...lazyPage(() => import("./pages/CmsDashboardPage"), "CmsDashboardPage") },
 
   // ── Messages ──────────────────────────────────────────────────
-  { path: "/messages/nouveau", Component: MessagesPage },
-  { path: "/messages", Component: MessagesPage },
+  { path: "/messages/nouveau", ...lazyPage(() => import("./pages/MessagesPage"), "MessagesPage") },
+  { path: "/messages", ...lazyPage(() => import("./pages/MessagesPage"), "MessagesPage") },
 
   // ── Portail Digital (Layout séparé) ──────────────────────────
   {
     path: "/digital",
     Component: DigitalLayout,
     children: [
-      { index: true, Component: DigitalHomePage },
-      { path: "services", Component: DigitalServicesPage },
-      { path: "contact", Component: DigitalContactPage },
+      { index: true, ...lazyPage(() => import("./pages/HomePage"), "HomePage") },
+      { path: "services", ...lazyPage(() => import("./pages/ServicesPage"), "ServicesPage") },
+      { path: "contact", ...lazyPage(() => import("./pages/ContactPage"), "ContactPage") },
     ]
   },
   {
     path: "/",
     Component: DigitalLayout,
     children: [
-      { path: "saas", Component: SaasPage },
-      { path: "projects", Component: ProjectsPage },
-      { path: "formations", Component: FormationsPage },
-      { path: "tutoriels", Component: FormationsPage },
-      { path: "team", Component: TeamPage },
+      { path: "saas", ...lazyPage(() => import("./pages/SaasPage"), "SaasPage") },
+      { path: "projects", ...lazyPage(() => import("./pages/ProjectsPage"), "ProjectsPage") },
+      { path: "formations", ...lazyPage(() => import("./pages/FormationsPage"), "FormationsPage") },
+      { path: "tutoriels", ...lazyPage(() => import("./pages/FormationsPage"), "FormationsPage") },
+      { path: "team", ...lazyPage(() => import("./pages/TeamPage"), "TeamPage") },
     ]
   },
 
   // ── Pages détail ─────────────────────────────────────────────
-  { path: "/formations/:slug", Component: FormationDetailPage },
-  { path: "/saas/:slug", Component: SaasDetailPage },
+  { path: "/formations/:slug", ...lazyPage(() => import("./pages/FormationDetailPage"), "FormationDetailPage") },
+  { path: "/saas/:slug", ...lazyPage(() => import("./pages/SaasDetailPage"), "SaasDetailPage") },
 ]);
