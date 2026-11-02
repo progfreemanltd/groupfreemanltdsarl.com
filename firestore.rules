@@ -92,12 +92,16 @@ service cloud.firestore {
     // PRODUCTS COLLECTION
     // ==========================================
     match /products/{productId} {
-      // Anyone can read active products; validated vendors can publish pending products
-      allow read: if resource.data.status == 'active' || isSuperAdmin();
+      // Public catalog is active-only; vendors may read only their own listings.
+      allow read: if resource.data.status == 'active' || isSuperAdmin() ||
+                    (isVendor() && resource.data.vendorId == request.auth.uid);
       
       // Vendors publish their own products; admins manage the entire catalog
-      allow create: if isVendor() && request.resource.data.vendorId == request.auth.uid && request.resource.data.status == 'pending';
-      allow update: if isSuperAdmin() || (isVendor() && resource.data.vendorId == request.auth.uid && request.resource.data.status == 'pending');
+      allow create: if isVendor() && request.resource.data.vendorId == request.auth.uid && request.resource.data.status == 'pending_approval';
+      allow update: if isSuperAdmin() ||
+                      (isVendor() && resource.data.vendorId == request.auth.uid &&
+                        request.resource.data.vendorId == resource.data.vendorId &&
+                        request.resource.data.status == 'pending_approval');
       allow delete: if isSuperAdmin() || (isVendor() && resource.data.vendorId == request.auth.uid);
     }
     

@@ -2,7 +2,7 @@ import { Search, ShoppingCart, Filter, Star, PlusSquare, Bell, Heart, MessageCir
 import { Link, useSearchParams } from 'react-router';
 import { useState, useRef, useEffect } from 'react';
 import { db } from '../../lib/firebase';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, where } from 'firebase/firestore';
 import { MARKETPLACE_CATEGORIES } from '../data/marketplaceCategories';
 import { useCurrency, CurrencyCode } from '../context/CurrencyContext';
 import { useCart } from '../context/CartContext';
@@ -40,7 +40,11 @@ export function MarketplacePage() {
   }, []);
 
   useEffect(() => {
-    const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
+    const q = query(
+      collection(db, 'products'),
+      where('status', '==', 'active'),
+      orderBy('createdAt', 'desc')
+    );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const fetchedProducts = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -54,9 +58,9 @@ export function MarketplacePage() {
 
   const activeCategoryData = MARKETPLACE_CATEGORIES.find(c => c.id === activeMenu);
 
-  const filteredProducts = currentCat 
-    ? products.filter(p => (p.categoryId === currentCat || p.parentIds?.includes(currentCat)) && p.status === 'active')
-    : products.filter(p => p.status === 'active');
+  const filteredProducts = currentCat
+    ? products.filter(p => p.categoryId === currentCat || p.parentIds?.includes(currentCat))
+    : products;
 
   return (
     <div className="w-full bg-[#f8f9fa] min-h-screen pb-20">
