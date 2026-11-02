@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { db } from '../../lib/firebase';
-import { doc, collection, onSnapshot, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { doc, collection, onSnapshot, setDoc, deleteDoc, updateDoc, query, where } from 'firebase/firestore';
+import { useAuth } from './AuthContext';
 import { saasProjects, SaasProject } from '../data/saas';
 import { teamMembers } from '../data/team';
 import { formations as staticFormations } from '../data/formations';
@@ -12,6 +13,8 @@ export interface SectorCMS {
   description: string;
   iconName: string; // Ex: 'Monitor', 'HardHat', etc.
   link: string;
+  externalUrl?: string;
+  subServices?: string[];
 }
 
 export interface HomepageCMS {
@@ -56,10 +59,21 @@ export interface ContactCMS {
   facebook?: string;
   instagram?: string;
   youtube?: string;
+  socialEnabled?: {
+    linkedin?: boolean;
+    github?: boolean;
+    twitter?: boolean;
+    facebook?: boolean;
+    instagram?: boolean;
+    youtube?: boolean;
+  };
   activePayments?: string[];
   partners?: { name: string; imageUrl: string; }[];
   newsletterWebhookUrl?: string;
   systemeIoFormUrl?: string;
+  wahornouUrl?: string;
+  wahornouLabel?: string;
+  wahornouDescription?: string;
 }
 
 interface CMSContextType {
@@ -143,6 +157,42 @@ const defaultHomepage: HomepageCMS = {
       description: 'Développement de réseaux de distribution et stratégies retail.',
       iconName: 'ShoppingBag',
       link: '/services?tab=commerce'
+    },
+    {
+      title: 'Achat Facile',
+      description: 'Achat international, réception et livraison de colis au Bénin.',
+      iconName: 'ShoppingBag',
+      link: '/services/achat-livraison'
+    },
+    {
+      title: 'Jardin & Paysage',
+      description: 'Conception paysagère, aménagement et entretien des espaces verts.',
+      iconName: 'Leaf',
+      link: '/services/jardinage'
+    },
+    {
+      title: 'Services en développement',
+      description: 'Découvrez les filiales et projets stratégiques en cours de lancement.',
+      iconName: 'Sparkles',
+      link: '/services/en-developpement',
+      subServices: [
+        'Freeman Transport & Logistique',
+        'Freeman Express Shipping',
+        'Freeman Retails',
+        'Freeman Best Hydrocarbures',
+        'Freeman Prestige IMMO',
+        'Freeman International School',
+        'Freeman Dream Studio',
+        'Fondation AFRICA YOUTH FUTURE',
+        'ONG FREEMAN GIVEN HAPPINESS'
+      ]
+    },
+    {
+      title: 'WAHONOU',
+      description: 'Boutique en ligne indépendante pour acheter les produits en stock Freeman.',
+      iconName: 'ExternalLink',
+      link: 'https://wahornou.bj',
+      externalUrl: 'https://wahornou.bj'
     }
   ],
   visibleSections: ['sectors', 'about_teaser', 'cta', 'formations', 'saas', 'team'],
@@ -164,13 +214,42 @@ const defaultContact: ContactCMS = {
   facebook: "",
   instagram: "",
   youtube: "",
+  socialEnabled: {
+    linkedin: true,
+    github: true,
+    twitter: true,
+    facebook: false,
+    instagram: false,
+    youtube: false
+  },
   activePayments: ['visa', 'mastercard', 'momo', 'moov', 'celtis', 'orange', 'wave'],
-  partners: []
+  partners: [],
+  wahornouUrl: 'https://wahornou.bj',
+  wahornouLabel: 'WAHONOU',
+  wahornouDescription: 'Boutique officielle'
 };
 
+const publicContactFields = [
+  'email', 'phone', 'address', 'linkedin', 'github', 'twitter', 'facebook',
+  'instagram', 'youtube', 'socialEnabled', 'activePayments', 'partners',
+  'wahornouUrl', 'wahornouLabel', 'wahornouDescription'
+] as const;
+
+function selectPublicContact(data: Record<string, unknown>): Partial<ContactCMS> {
+  return Object.fromEntries(
+    publicContactFields
+      .filter((key) => key in data)
+      .map((key) => [key, data[key]])
+  ) as Partial<ContactCMS>;
+}
+
 export function CMSProvider({ children }: { children: React.ReactNode }) {
+  const { userData } = useAuth();
+  const canManageDrafts = userData?.role === 'super_admin' || userData?.role === 'admin';
+  const canAccessPrivateContact = userData?.role === 'super_admin';
   const [homepageData, setHomepageData] = useState<HomepageCMS>(defaultHomepage);
   const [contactData, setContactData] = useState<ContactCMS>(defaultContact);
+  const [contactIntegrations, setContactIntegrations] = useState<Pick<ContactCMS, 'newsletterWebhookUrl' | 'systemeIoFormUrl'>>({});
   const [saasProjectsList, setSaasProjectsList] = useState<SaasProject[]>(saasProjects);
   const [formationsList, setFormationsList] = useState<any[]>(staticFormations);
   const [teamMembersList, setTeamMembersList] = useState<any[]>(teamMembers);
@@ -223,7 +302,16 @@ export function CMSProvider({ children }: { children: React.ReactNode }) {
     // 1. Abonnement Homepage
     const unsubHomepage = onSnapshot(doc(db, 'cms_content', 'homepage'), (docSnap) => {
       if (docSnap.exists()) {
-        setHomepageData({ ...defaultHomepage, ...docSnap.data() } as HomepageCMS);
+        const storedData = docSnap.data();
+        const storedSectors = Array.isArray(storedData.sectors) ? storedData.sectors : [];
+        const missingSectors = defaultHomepage.sectors.filter(defaultSector =>
+          !storedSectors.some((storedSector: SectorCMS) => storedSector.title === defaultSector.title)
+        );
+        setHomepageData({
+          ...defaultHomepage,
+          ...storedData,
+          sectors: [...storedSectors, ...missingSectors]
+        } as HomepageCMS);
       } else {
         setHomepageData(defaultHomepage);
       }
@@ -237,7 +325,14 @@ export function CMSProvider({ children }: { children: React.ReactNode }) {
     // 2. Abonnement Contact
     const unsubContact = onSnapshot(doc(db, 'cms_content', 'contact'), (docSnap) => {
       if (docSnap.exists()) {
-        setContactData({ ...defaultContact, ...docSnap.data() } as ContactCMS);
+        const storedContact = docSnap.data();
+        setContactData({ ...defaultContact, ...selectPublicContact(storedContact) } as ContactCMS);
+        if (canAccessPrivateContact) {
+          setContactIntegrations((current) => ({
+            newsletterWebhookUrl: current.newsletterWebhookUrl || storedContact.newsletterWebhookUrl || '',
+            systemeIoFormUrl: current.systemeIoFormUrl || storedContact.systemeIoFormUrl || ''
+          }));
+        }
       } else {
         setContactData(defaultContact);
       }
@@ -263,7 +358,10 @@ export function CMSProvider({ children }: { children: React.ReactNode }) {
     });
 
     // 4. Abonnement Formations
-    const unsubFormations = onSnapshot(collection(db, 'formations'), (snap) => {
+    const formationsQuery = canManageDrafts
+      ? collection(db, 'formations')
+      : query(collection(db, 'formations'), where('published', '==', true));
+    const unsubFormations = onSnapshot(formationsQuery, (snap) => {
       if (!snap.empty) {
         setFormationsList(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       } else {
@@ -307,6 +405,20 @@ export function CMSProvider({ children }: { children: React.ReactNode }) {
       checkBlog();
     });
 
+    let unsubPrivateContact = () => {};
+    if (canAccessPrivateContact) {
+      unsubPrivateContact = onSnapshot(doc(db, 'cms_private', 'contact_integrations'), (docSnap) => {
+        if (docSnap.exists()) {
+          setContactIntegrations(docSnap.data() as Pick<ContactCMS, 'newsletterWebhookUrl' | 'systemeIoFormUrl'>);
+        }
+      }, (error) => {
+        console.error('Erreur Firestore intégrations privées:', error);
+        setContactIntegrations({});
+      });
+    } else {
+      setContactIntegrations({});
+    }
+
     return () => {
       unsubHomepage();
       unsubContact();
@@ -314,8 +426,9 @@ export function CMSProvider({ children }: { children: React.ReactNode }) {
       unsubFormations();
       unsubTeam();
       unsubBlog();
+      unsubPrivateContact();
     };
-  }, []);
+  }, [canManageDrafts, canAccessPrivateContact]);
 
   // Actions d'enregistrement CMS
   const saveHomepageData = async (data: Partial<HomepageCMS>) => {
@@ -324,8 +437,14 @@ export function CMSProvider({ children }: { children: React.ReactNode }) {
   };
 
   const saveContactData = async (data: Partial<ContactCMS>) => {
-    const ref = doc(db, 'cms_content', 'contact');
-    await setDoc(ref, { ...contactData, ...data }, { merge: true });
+    const mergedContact = { ...contactData, ...data } as ContactCMS;
+    const integrations = {
+      newsletterWebhookUrl: mergedContact.newsletterWebhookUrl || '',
+      systemeIoFormUrl: mergedContact.systemeIoFormUrl || ''
+    };
+    await setDoc(doc(db, 'cms_private', 'contact_integrations'), integrations, { merge: true });
+    await setDoc(doc(db, 'cms_content', 'contact'), selectPublicContact(mergedContact));
+    setContactIntegrations(integrations);
   };
 
   const saveSaasProject = async (saas: SaasProject) => {
@@ -438,7 +557,7 @@ export function CMSProvider({ children }: { children: React.ReactNode }) {
     <CMSContext.Provider
       value={{
         homepageData,
-        contactData,
+        contactData: canAccessPrivateContact ? { ...contactData, ...contactIntegrations } : contactData,
         saasProjectsList,
         formationsList,
         teamMembersList,

@@ -31,7 +31,7 @@ export function CorporateLayout() {
     { label: 'Nos Réalisations', path: '/portfolio' },
     { label: 'Investir ici', path: '/investments' },
     { label: 'Blog', path: '/blog' },
-    { label: 'Marketplace', path: '/boutique' }
+    { label: 'Freeman Business Market', path: '/boutique' }
   ];
 
   const toolsAndResourcesLinks = [
@@ -298,32 +298,32 @@ export function CorporateLayout() {
             )}
 
             <div className="flex gap-3">
-              {contactData.linkedin && (
+              {contactData.linkedin && (contactData.socialEnabled?.linkedin ?? true) && (
                 <a href={contactData.linkedin} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-full bg-white border border-gray-200 hover:bg-[#1A2CB5] hover:text-white hover:border-[#1A2CB5] transition-all flex items-center justify-center text-gray-500 shadow-sm" title="LinkedIn">
                   <Linkedin size={15} />
                 </a>
               )}
-              {contactData.twitter && (
+              {contactData.twitter && (contactData.socialEnabled?.twitter ?? true) && (
                 <a href={contactData.twitter} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-full bg-white border border-gray-200 hover:bg-[#1A2CB5] hover:text-white hover:border-[#1A2CB5] transition-all flex items-center justify-center text-gray-500 shadow-sm" title="Twitter">
                   <Twitter size={15} />
                 </a>
               )}
-              {contactData.github && (
+              {contactData.github && (contactData.socialEnabled?.github ?? true) && (
                 <a href={contactData.github} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-full bg-white border border-gray-200 hover:bg-[#1A2CB5] hover:text-white hover:border-[#1A2CB5] transition-all flex items-center justify-center text-gray-500 shadow-sm" title="GitHub">
                   <Github size={15} />
                 </a>
               )}
-              {contactData.facebook && (
+              {contactData.facebook && (contactData.socialEnabled?.facebook ?? true) && (
                 <a href={contactData.facebook} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-full bg-white border border-gray-200 hover:bg-[#1A2CB5] hover:text-white hover:border-[#1A2CB5] transition-all flex items-center justify-center text-gray-500 shadow-sm" title="Facebook">
                   <Facebook size={15} />
                 </a>
               )}
-              {contactData.instagram && (
+              {contactData.instagram && (contactData.socialEnabled?.instagram ?? true) && (
                 <a href={contactData.instagram} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-full bg-white border border-gray-200 hover:bg-[#1A2CB5] hover:text-white hover:border-[#1A2CB5] transition-all flex items-center justify-center text-gray-500 shadow-sm" title="Instagram">
                   <Instagram size={15} />
                 </a>
               )}
-              {contactData.youtube && (
+              {contactData.youtube && (contactData.socialEnabled?.youtube ?? true) && (
                 <a href={contactData.youtube} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-full bg-white border border-gray-200 hover:bg-[#1A2CB5] hover:text-white hover:border-[#1A2CB5] transition-all flex items-center justify-center text-gray-500 shadow-sm" title="YouTube">
                   <Youtube size={15} />
                 </a>

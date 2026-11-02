@@ -2,12 +2,20 @@ import { useState, useEffect } from 'react';
 import { Menu, X, ChevronDown, ChevronUp, Lock, ShoppingBag, Leaf, ExternalLink, Monitor, HardHat, Users, Hotel, Ruler, Store, Sparkles, ArrowRight, Layers } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link, useLocation } from 'react-router';
+import { useCMS } from '../context/CMSContext';
+
+const serviceIcons = { Monitor, HardHat, Users, Hotel, Ruler, ShoppingBag, Leaf, Sparkles, Store, ExternalLink };
 
 export function CorporateNavigation() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isPromoOpen, setIsPromoOpen] = useState(true);
   const location = useLocation();
+  const { contactData, homepageData } = useCMS();
+  const wahornouUrl = contactData.wahornouUrl || 'https://wahornou.bj';
+  const wahornouLabel = contactData.wahornouLabel || 'WAHONOU';
+  const wahornouDescription = contactData.wahornouDescription || 'Boutique officielle';
+  const getServiceIcon = (iconName: string) => serviceIcons[iconName as keyof typeof serviceIcons] || Layers;
 
   useEffect(() => {
     const handleScroll = () => {
@@ -97,11 +105,29 @@ export function CorporateNavigation() {
                             Nos Services & Filiales Actives
                           </h4>
                           <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-[#1A2CB5]/10 text-[#1A2CB5]">
-                            9 Solutions
+                            {homepageData.sectors.filter(service => service.title !== 'Services en développement').length} Services
                           </span>
                         </div>
 
                         <div className="grid grid-cols-3 gap-2">
+                          {homepageData.sectors.filter(service => service.title !== 'Services en développement').map(service => service.externalUrl ? (
+                            <a key={service.title} href={service.externalUrl} target="_blank" rel="noopener noreferrer" className="group/item flex flex-col p-2.5 rounded-xl hover:bg-amber-50/60 transition-colors border border-amber-200/50 bg-amber-50/20">
+                              <div className="w-7 h-7 rounded-lg bg-[#d4af37]/20 text-amber-900 flex items-center justify-center shrink-0 mb-1.5"><ExternalLink size={15} /></div>
+                              <div className="text-xs font-bold text-gray-900 group-hover/item:text-[#d4af37] transition-colors">{service.title} ↗</div>
+                              <div className="text-[10px] text-gray-500 font-normal">{service.description}</div>
+                            </a>
+                          ) : (
+                            <Link key={service.title} to={service.link} className="group/item flex flex-col p-2.5 rounded-xl hover:bg-[#1A2CB5]/5 transition-colors border border-transparent hover:border-[#1A2CB5]/15">
+                              <div className="w-7 h-7 rounded-lg bg-blue-50 text-[#1A2CB5] flex items-center justify-center shrink-0 mb-1.5">
+                                {(() => { const Icon = getServiceIcon(service.iconName); return <Icon size={15} />; })()}
+                              </div>
+                              <div className="text-xs font-bold text-gray-800 group-hover/item:text-[#1A2CB5] transition-colors">{service.title}</div>
+                              <div className="text-[10px] text-gray-400 font-normal">{service.description}</div>
+                            </Link>
+                          ))}
+                        </div>
+
+                        <div className="hidden grid grid-cols-3 gap-2">
                           <Link to="/services/digital" className="group/item flex flex-col p-2.5 rounded-xl hover:bg-[#1A2CB5]/5 transition-colors border border-transparent hover:border-[#1A2CB5]/15">
                             <div className="w-7 h-7 rounded-lg bg-blue-50 text-[#1A2CB5] flex items-center justify-center shrink-0 mb-1.5 group-hover/item:bg-[#1A2CB5] group-hover/item:text-white transition-colors">
                               <Monitor size={15} />
@@ -166,14 +192,14 @@ export function CorporateNavigation() {
                             <div className="text-[10px] text-gray-400 font-normal">Espaces verts</div>
                           </Link>
 
-                          <a href="#" target="_blank" rel="noopener noreferrer" className="group/item flex flex-col p-2.5 rounded-xl hover:bg-amber-50/60 transition-colors border border-amber-200/50 bg-amber-50/20">
+                          <a href="https://wahornou.bj" target="_blank" rel="noopener noreferrer" className="group/item flex flex-col p-2.5 rounded-xl hover:bg-amber-50/60 transition-colors border border-amber-200/50 bg-amber-50/20">
                             <div className="w-7 h-7 rounded-lg bg-[#d4af37]/20 text-amber-900 flex items-center justify-center shrink-0 mb-1.5 group-hover/item:bg-[#d4af37] group-hover/item:text-black transition-colors">
                               <ExternalLink size={15} />
                             </div>
                             <div className="text-xs font-bold text-gray-900 group-hover/item:text-[#d4af37] transition-colors flex items-center gap-1">
-                              WAHONU <span className="text-[9px] text-amber-800 font-extrabold">↗</span>
+                              {wahornouLabel} <span className="text-[9px] text-amber-800 font-extrabold">↗</span>
                             </div>
-                            <div className="text-[10px] text-gray-500 font-normal">Boutique Officielle</div>
+                            <div className="text-[10px] text-gray-500 font-normal">{wahornouDescription}</div>
                           </a>
                         </div>
                       </div>
@@ -193,7 +219,7 @@ export function CorporateNavigation() {
                               <div className="flex items-center justify-between mb-2">
                                 <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#d4af37]/20 text-[#d4af37] border border-[#d4af37]/30">
                                   <Sparkles size={10} />
-                                  9 Projets
+                                  {homepageData.sectors.find(service => service.title === 'Services en développement')?.subServices?.length || 0} Projets
                                 </span>
                               </div>
 
@@ -320,21 +346,23 @@ export function CorporateNavigation() {
                           Freeman Jardin & Paysage
                         </Link>
                         <a 
-                          href="#"
+                          href={wahornouUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={() => setIsMobileMenuOpen(false)}
                           className="block px-3 py-1.5 rounded-lg text-sm text-amber-800 font-medium hover:text-[#d4af37]"
                         >
-                          WAHONU (Boutique) ↗
+                          {wahornouLabel} (Boutique) ↗
                         </a>
                         <Link 
                           to="/services/en-developpement"
                           onClick={() => setIsMobileMenuOpen(false)}
                           className="block px-3 py-2 rounded-xl text-xs font-bold bg-[#1a0429] text-[#d4af37] flex items-center justify-between"
                         >
-                          <span>Services en développement</span>
-                          <span className="text-[10px] bg-white/10 px-1.5 py-0.5 rounded text-white">9 Projets</span>
+                          <span>Services & filiales en création</span>
+                          <span className="text-[10px] bg-white/10 px-1.5 py-0.5 rounded text-white">
+                            {homepageData.sectors.find(service => service.title === 'Services en développement')?.subServices?.length || 0} Projets
+                          </span>
                         </Link>
                       </div>
                     )}

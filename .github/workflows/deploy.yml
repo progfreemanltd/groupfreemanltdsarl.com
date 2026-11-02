@@ -1,40 +1,35 @@
-name: Deploy Website to Hostinger
+name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+  pull_request:
 
 jobs:
-  web-deploy:
-    name: 🎉 Deploy
+  verify:
+    name: Build and Firestore rules tests
     runs-on: ubuntu-latest
     steps:
-    - name: 🚚 Get latest code
-      uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: 🐛 Debug file structure
-      run: ls -R
+      - name: Set up Java for Firestore Emulator
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
 
-    - name: 🔧 Use Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
 
-    - name: 📦 Install dependencies
-      working-directory: ${{ github.workspace }}/groupfreemanltdsarl.com
-      run: npm install
+      - name: Install dependencies
+        run: npm ci
 
-    - name: 🏗️ Build Project
-      working-directory: ${{ github.workspace }}/groupfreemanltdsarl.com
-      run: npm run build
+      - name: Build Vite app
+        run: npm run build
 
-    - name: 📂 Sync files
-      uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-      with:
-        server: ${{ secrets.FTP_SERVER }}
-        username: ${{ secrets.FTP_USERNAME }}
-        password: ${{ secrets.FTP_PASSWORD }}
-        local-dir: ./dist/
-        server-dir: ./public_html/
+      - name: Test Firestore rules in emulator
+        run: npm run test:firestore-rules

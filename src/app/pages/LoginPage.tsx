@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router';
 import { auth, db } from '../../lib/firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { Mail, Lock, User, Briefcase, ArrowRight, Loader2, Phone, MapPin, FileText } from 'lucide-react';
+import { Mail, Lock, User, Briefcase, ArrowRight, Loader2, Phone, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function LoginPage() {
@@ -17,10 +17,10 @@ export function LoginPage() {
   const [name, setName] = useState(''); // Nom ou nom entreprise
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
-  const [ifu, setIfu] = useState('');
-  const [rccm, setRccm] = useState('');
   
   const [role, setRole] = useState<'customer' | 'vendor'>('customer');
+  const [ifu, setIfu] = useState('');
+  const [rccm, setRccm] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,7 +74,7 @@ export function LoginPage() {
         };
 
         if (role === 'vendor') {
-           Object.assign(newUserDoc, { ifu: ifu, rccm: rccm });
+          Object.assign(newUserDoc, { ifu, rccm });
         }
 
         await setDoc(doc(db, 'users', user.uid), newUserDoc);
@@ -187,56 +187,19 @@ export function LoginPage() {
 
                 {role === 'vendor' && (
                   <>
-                    <div>
-                      <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Numéro IFU (Fiscal)</label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                          <FileText size={18} />
-                        </div>
-                        <input 
-                          type="text" 
-                          value={ifu}
-                          onChange={(e) => setIfu(e.target.value)}
-                          required
-                          className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-[#1A2CB5] focus:ring-2 focus:ring-[#1A2CB5]/20 outline-none transition-all"
-                          placeholder="Numéro IFU valide requis"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Numéro RCCM (Optionnel)</label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                          <FileText size={18} />
-                        </div>
-                        <input 
-                          type="text" 
-                          value={rccm}
-                          onChange={(e) => setRccm(e.target.value)}
-                          className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-[#1A2CB5] focus:ring-2 focus:ring-[#1A2CB5]/20 outline-none transition-all"
-                          placeholder="Registre du Commerce"
-                        />
-                      </div>
-                    </div>
+                    <input type="text" value={ifu} onChange={e => setIfu(e.target.value)} required placeholder="Numéro IFU valide requis" className="w-full border border-gray-200 p-3 rounded-xl" />
+                    <input type="text" value={rccm} onChange={e => setRccm(e.target.value)} placeholder="Numéro RCCM (optionnel)" className="w-full border border-gray-200 p-3 rounded-xl" />
                   </>
                 )}
 
                 <div>
                   <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Type de compte</label>
                   <div className="grid grid-cols-2 gap-3">
-                    <button 
-                      type="button"
-                      onClick={() => setRole('customer')}
-                      className={`border-2 rounded-xl p-3 flex flex-col items-center justify-center gap-2 transition-all ${role === 'customer' ? 'border-[#1A2CB5] bg-[#1A2CB5]/5 text-[#1A2CB5]' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}
-                    >
+                    <button type="button" onClick={() => setRole('customer')} className={`border-2 rounded-xl p-3 flex flex-col items-center justify-center gap-2 ${role === 'customer' ? 'border-[#1A2CB5] bg-[#1A2CB5]/5 text-[#1A2CB5]' : 'border-gray-200 text-gray-500'}`}>
                       <User size={20} />
                       <span className="text-xs font-bold">Acheteur</span>
                     </button>
-                    <button 
-                      type="button"
-                      onClick={() => setRole('vendor')}
-                      className={`border-2 rounded-xl p-3 flex flex-col items-center justify-center gap-2 transition-all ${role === 'vendor' ? 'border-[#d4af37] bg-[#d4af37]/5 text-[#d4af37]' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}
-                    >
+                    <button type="button" onClick={() => setRole('vendor')} className={`border-2 rounded-xl p-3 flex flex-col items-center justify-center gap-2 ${role === 'vendor' ? 'border-[#d4af37] bg-[#d4af37]/5 text-[#d4af37]' : 'border-gray-200 text-gray-500'}`}>
                       <Briefcase size={20} />
                       <span className="text-xs font-bold">Vendeur Pro</span>
                     </button>

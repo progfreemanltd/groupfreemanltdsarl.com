@@ -99,9 +99,9 @@ function Header() {
                   <img src="/logo.png" alt="Freeman Group" className="h-10 sm:h-12 w-auto object-contain transition-transform duration-300 group-hover:scale-105" />
                 </Link>
                 <div className="h-8 w-px bg-gray-200 hidden sm:block"></div>
-                <Link to="/boutique" className="flex flex-col group" title="Accueil Freeman Market">
+                <Link to="/boutique" className="flex flex-col group" title="Accueil Freeman Business Market">
                   <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1 group-hover:text-[#1A2CB5] transition-colors">B2B</span>
-                  <span className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight leading-none group-hover:text-[#1A2CB5] transition-colors">Freeman <span className="text-[#1A2CB5]">Market</span></span>
+                  <span className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight leading-none group-hover:text-[#1A2CB5] transition-colors">Freeman <span className="text-[#1A2CB5]">Business Market</span></span>
                 </Link>
               </div>
               
